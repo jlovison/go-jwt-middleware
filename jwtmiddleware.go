@@ -3,7 +3,7 @@ package jwtmiddleware
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/context"
+	"github.com/zenazn/goji/web"
 	"net/http"
 	"strings"
 )
@@ -59,32 +59,22 @@ func New(options ...Options) *JWTMiddleware {
 	}
 }
 
-// Special implementation for Negroni, but could be used elsewhere.
-func (m *JWTMiddleware) HandlerWithNext(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	err := m.CheckJWT(w, r)
-
-	// If there was an error, do not call next.
-	if err == nil && next != nil {
-		next(w, r)
-	}
-}
-
-func (m *JWTMiddleware) Handler(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func (m *JWTMiddleware) Handler(h web.Handler) web.Handler {
+	return web.HandlerFunc(func(c web.C, w http.ResponseWriter, r *http.Request) {
 		// Let secure process the request. If it returns an error,
 		// that indicates the request should not continue.
-		err := m.CheckJWT(w, r)
+		err := m.CheckJWT(c, w, r)
 
 		// If there was an error, do not continue.
 		if err != nil {
 			return
 		}
 
-		h.ServeHTTP(w, r)
+		h.ServeHTTPC(c, w, r)
 	})
 }
 
-func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
+func (m *JWTMiddleware) CheckJWT(c web.C, w http.ResponseWriter, r *http.Request) error {
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -116,7 +106,7 @@ func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
 		m.Options.ErrorHandler(w, r, "The token isn't valid")
 	}
 
-	context.Set(r, m.Options.UserProperty, parsedToken)
+	c.Env[m.Options.UserProperty] = parsedToken
 
 	return nil
 }
