@@ -59,8 +59,8 @@ func New(options ...Options) *JWTMiddleware {
 	}
 }
 
-func (m *JWTMiddleware) Handler(h web.Handler) web.Handler {
-	return web.HandlerFunc(func(c web.C, w http.ResponseWriter, r *http.Request) {
+func (m *JWTMiddleware) Handler(c *web.C, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Let secure process the request. If it returns an error,
 		// that indicates the request should not continue.
 		err := m.CheckJWT(c, w, r)
@@ -70,11 +70,11 @@ func (m *JWTMiddleware) Handler(h web.Handler) web.Handler {
 			return
 		}
 
-		h.ServeHTTPC(c, w, r)
+		h.ServeHTTP(w, r)
 	})
 }
 
-func (m *JWTMiddleware) CheckJWT(c web.C, w http.ResponseWriter, r *http.Request) error {
+func (m *JWTMiddleware) CheckJWT(c *web.C, w http.ResponseWriter, r *http.Request) error {
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
