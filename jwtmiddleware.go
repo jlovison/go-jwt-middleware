@@ -1,11 +1,12 @@
 package jwtmiddleware
 
 import (
+	"context"
 	"errors"
-	"github.com/dgrijalva/jwt-go"
-	"github.com/zenazn/goji/web"
 	"net/http"
 	"strings"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 type errorHandler func(w http.ResponseWriter, r *http.Request, err string)
@@ -59,11 +60,11 @@ func New(options ...Options) *JWTMiddleware {
 	}
 }
 
-func (m *JWTMiddleware) Handler(c *web.C, h http.Handler) http.Handler {
+func (m *JWTMiddleware) Handler(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Let secure process the request. If it returns an error,
 		// that indicates the request should not continue.
-		err := m.CheckJWT(c, w, r)
+		err := m.CheckJWT(w, r)
 
 		// If there was an error, do not continue.
 		if err != nil {
@@ -74,7 +75,8 @@ func (m *JWTMiddleware) Handler(c *web.C, h http.Handler) http.Handler {
 	})
 }
 
-func (m *JWTMiddleware) CheckJWT(c *web.C, w http.ResponseWriter, r *http.Request) error {
+// CheckJWT is the middleware to check the jwt from a request
+func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
@@ -106,7 +108,9 @@ func (m *JWTMiddleware) CheckJWT(c *web.C, w http.ResponseWriter, r *http.Reques
 		m.Options.ErrorHandler(w, r, "The token isn't valid")
 	}
 
-	c.Env[m.Options.UserProperty] = parsedToken
+	ctx := r.Context()
+	ctx = context.WithValue(ctx, m.Options.UserProperty, parsedToken)
+	r = r.WithContext(ctx)
 
 	return nil
 }
